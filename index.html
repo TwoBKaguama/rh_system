@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Integral RH - Dashboard y Gestión</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root { --udg-red: #B22222; --bg-light: #f4f6f9; }
+        body { background-color: var(--bg-light); font-family: 'Segoe UI', sans-serif; }
+        .navbar { background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card { border: none; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .filter-bar { background-color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        .kpi-card { border-left: 5px solid var(--udg-red); transition: transform 0.2s; cursor: default; }
+        .kpi-card:hover { transform: translateY(-5px); }
+        .chart-container { position: relative; height: 350px; width: 100%; }
+        
+        /* Estilos Tabla */
+        .avatar-circle { width: 40px; height: 40px; background-color: #ddd; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #555; }
+        .status-active { color: #28a745; background-color: #d4edda; padding: 3px 10px; border-radius: 15px; font-size: 0.8rem; }
+        .status-inactive { color: #dc3545; background-color: #f8d7da; padding: 3px 10px; border-radius: 15px; font-size: 0.8rem; }
+        .nav-tabs .nav-link.active { border-top: 3px solid var(--udg-red); font-weight: bold; color: var(--udg-red); }
+        .nav-tabs .nav-link { color: #555; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <div style="width: 40px; height: 50px; background-color: #333; margin-right: 10px; display: flex; align-items: center; justify-content: center; color: white; border-radius: 3px;">
+                    <i class="fas fa-university"></i>
+                </div>
+                <div>
+                    <h5 class="mb-0">Sistema de Recursos Humanos</h5>
+                    <small class="text-muted">Gestión Integral v5.0 (Corregido)</small>
+                </div>
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <div class="text-end d-none d-md-block">
+                    <small class="d-block text-muted">Usuario Activo</small>
+                    <span class="fw-bold">Admin RH</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+
+        <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button"><i class="fas fa-chart-line me-2"></i>Dashboard</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="gestion-tab" data-bs-toggle="tab" data-bs-target="#gestion" type="button"><i class="fas fa-users-cog me-2"></i>Gestión de Personal</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="myTabContent">
+            
+            <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="filter-bar d-flex flex-wrap gap-3 align-items-end">
+                            <div class="flex-grow-1">
+                                <label class="form-label fw-bold">Año Fiscal</label>
+                                <select class="form-select" id="filtroAnio" onchange="updateDashboard()">
+                                    <option value="2025" selected>2025</option>
+                                    <option value="2024">2024</option>
+                                </select>
+                            </div>
+                            <div class="flex-grow-1">
+                                <label class="form-label fw-bold">Departamento</label>
+                                <select class="form-select" id="filtroDept" onchange="updateDashboard()">
+                                    <option value="all">Todos</option>
+                                    <option value="TI">Tecnología (TI)</option>
+                                    <option value="Operaciones">Operaciones</option>
+                                    <option value="RH">Recursos Humanos</option>
+                                    <option value="Ventas">Ventas</option>
+                                </select>
+                            </div>
+                            <div class="flex-grow-1">
+                                <label class="form-label fw-bold">Sucursal</label>
+                                <select class="form-select" id="filtroSucursal" onchange="updateDashboard()">
+                                    <option value="all">Todas</option>
+                                    <option value="Guadalajara">Guadalajara</option>
+                                    <option value="CDMX">CDMX</option>
+                                    <option value="Monterrey">Monterrey</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button class="btn btn-primary" onclick="updateDashboard()"><i class="fas fa-filter"></i> Actualizar Gráficas</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card kpi-card p-3">
+                            <h6 class="text-muted">Headcount Activo</h6>
+                            <h3 id="kpi-headcount">0</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card kpi-card p-3" style="border-left-color: #28a745;">
+                            <h6 class="text-muted">Ingresos (Año Selec.)</h6>
+                            <h3 id="kpi-ingresos">0</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card kpi-card p-3" style="border-left-color: #dc3545;">
+                            <h6 class="text-muted">Bajas (Año Selec.)</h6>
+                            <h3 id="kpi-bajas">0</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card kpi-card p-3" style="border-left-color: #ffc107;">
+                            <h6 class="text-muted">Rotación Anual</h6>
+                            <h3 id="kpi-rotacion">0%</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Movimientos Mensuales</h5>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="descargarPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="descargarPNG()"><i class="fas fa-image"></i> PNG</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="chartMovimientos"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-header bg-white">
+                                <h5 class="mb-0">Distribución de Bajas</h5>
+                            </div>
+                            <div class="card-body d-flex align-items-center">
+                                <div class="chart-container" style="height: 300px;">
+                                    <canvas id="chartCausas"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="gestion" role="tabpanel">
+                <div class="card">
+                    <div class="card-header bg-white py-3">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h5 class="mb-0">Directorio de Colaboradores</h5>
+                            </div>
+                            <div class="col-md-6 text-md-end mt-2 mt-md-0">
+                                <button class="btn btn-success" onclick="abrirModalAlta()"><i class="fas fa-plus-circle"></i> Nuevo Ingreso</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                                    <input type="text" class="form-control" id="buscadorPersonal" placeholder="Buscar por nombre..." onkeyup="renderTable()">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select" id="filtroEstadoTabla" onchange="renderTable()">
+                                    <option value="all">Todos los Estados</option>
+                                    <option value="Activo">Solo Activos</option>
+                                    <option value="Inactivo">Solo Bajas</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Colaborador</th>
+                                        <th>Departamento</th>
+                                        <th>Sucursal</th>
+                                        <th>Fecha Ingreso</th>
+                                        <th>Estado</th>
+                                        <th class="text-end">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaPersonalBody">
+                                    </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center text-muted mt-3" id="noResults" style="display:none;">No se encontraron datos.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalEmpleado" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitulo">Nuevo Ingreso</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEmpleado">
+                        <input type="hidden" id="empId">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre Completo</label>
+                            <input type="text" class="form-control" id="empNombre" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Departamento</label>
+                                <select class="form-select" id="empDepto">
+                                    <option value="TI">Tecnología (TI)</option>
+                                    <option value="RH">Recursos Humanos</option>
+                                    <option value="Operaciones">Operaciones</option>
+                                    <option value="Ventas">Ventas</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Sucursal</label>
+                                <select class="form-select" id="empSucursal">
+                                    <option value="Guadalajara">Guadalajara</option>
+                                    <option value="CDMX">CDMX</option>
+                                    <option value="Monterrey">Monterrey</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Puesto</label>
+                            <input type="text" class="form-control" id="empPuesto" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Fecha de Ingreso</label>
+                            <input type="date" class="form-control" id="empFechaIngreso" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarEmpleado()">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalBaja" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Procesar Baja</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Estás a punto de dar de baja a: <strong id="bajaNombre"></strong></p>
+                    <input type="hidden" id="bajaId">
+                    <div class="mb-3">
+                        <label class="form-label">Fecha de Baja</label>
+                        <input type="date" class="form-control" id="bajaFecha" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo de Baja</label>
+                        <select class="form-select" id="bajaMotivo">
+                            <option value="Renuncia Voluntaria">Renuncia Voluntaria</option>
+                            <option value="Despido Justificado">Despido Justificado</option>
+                            <option value="Fin de Contrato">Fin de Contrato</option>
+                            <option value="Jubilación">Jubilación</option>
+                            <option value="Abandono de Trabajo">Abandono de Trabajo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmarBaja()">Confirmar Baja</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- VARIABLES GLOBALES ---
+        let empleadosDB = [];
+        let modalEmpleadoObj; // Se inicializa en DOMContentLoaded
+        let modalBajaObj;     // Se inicializa en DOMContentLoaded
+        let chartMovimientosInstance = null;
+        let chartCausasInstance = null;
+
+        // --- 1. GENERACIÓN DE DATOS (SIMULADOS) ---
+        function initDB() {
+            const nombres = ["Juan Pérez", "María López", "Carlos Ruiz", "Ana García", "Luis Torres", "Elena Diaz", "Pedro Sanchez", "Sofia Vega", "Miguel Angel", "Lucia Mendez", "Roberto Gomez", "Patricia Lima"];
+            const deptos = ["TI", "Operaciones", "RH", "Ventas"];
+            const sucursales = ["Guadalajara", "CDMX", "Monterrey"];
+            const motivos = ["Renuncia Voluntaria", "Despido Justificado", "Fin de Contrato"];
+
+            // Crear 150 registros para tener data robusta
+            for(let i=1; i<=150; i++) {
+                const nombre = nombres[Math.floor(Math.random() * nombres.length)] + " " + i; // Agrego i para que no sean idénticos
+                
+                // Fechas aleatorias (peso mayor a 2025 para que se vea bien la gráfica por default)
+                const year = Math.random() > 0.4 ? 2025 : 2024;
+                const month = Math.floor(Math.random() * 12) + 1;
+                const day = Math.floor(Math.random() * 28) + 1;
+                const fechaIngreso = `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}`;
+                
+                let estado = "Activo";
+                let fechaBaja = null;
+                let motivoBaja = null;
+
+                // 25% son bajas
+                if(Math.random() > 0.75) {
+                    estado = "Inactivo";
+                    // La baja en el mismo año o siguiente
+                    const mBaja = Math.min(12, month + Math.floor(Math.random() * 3) + 1);
+                    fechaBaja = `${year}-${mBaja.toString().padStart(2,'0')}-28`;
+                    motivoBaja = motivos[Math.floor(Math.random() * motivos.length)];
+                }
+
+                empleadosDB.push({
+                    id: i,
+                    nombre: nombre,
+                    depto: deptos[Math.floor(Math.random() * deptos.length)],
+                    sucursal: sucursales[Math.floor(Math.random() * sucursales.length)],
+                    puesto: "Colaborador",
+                    fechaIngreso: fechaIngreso,
+                    estado: estado,
+                    fechaBaja: fechaBaja,
+                    motivoBaja: motivoBaja
+                });
+            }
+            console.log("Datos generados:", empleadosDB.length);
+        }
+
+        // --- 2. GESTIÓN (CRUD) ---
+        function renderTable() {
+            const search = document.getElementById('buscadorPersonal').value.toLowerCase();
+            const filterEstado = document.getElementById('filtroEstadoTabla').value;
+            const tbody = document.getElementById('tablaPersonalBody');
+            tbody.innerHTML = '';
+            
+            const listaFiltrada = empleadosDB.filter(emp => {
+                const matchText = emp.nombre.toLowerCase().includes(search) || 
+                                  emp.puesto.toLowerCase().includes(search) ||
+                                  emp.id.toString().includes(search);
+                const matchEstado = filterEstado === 'all' || 
+                                    (filterEstado === 'Activo' && emp.estado === 'Activo') ||
+                                    (filterEstado === 'Inactivo' && emp.estado === 'Inactivo');
+                return matchText && matchEstado;
+            });
+
+            if (listaFiltrada.length === 0) {
+                document.getElementById('noResults').style.display = 'block';
+                return;
+            } else {
+                document.getElementById('noResults').style.display = 'none';
+            }
+
+            // Mostrar max 50 para rendimiento
+            listaFiltrada.slice(0, 50).forEach(emp => {
+                const iniciales = emp.nombre.substring(0,2).toUpperCase();
+                const badgeClass = emp.estado === 'Activo' ? 'status-active' : 'status-inactive';
+                
+                let botonesAccion = '';
+                if(emp.estado === 'Activo') {
+                    botonesAccion = `
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editarEmpleado(${emp.id})"><i class="fas fa-pencil-alt"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="prepararBaja(${emp.id})"><i class="fas fa-user-times"></i></button>
+                    `;
+                } else {
+                    botonesAccion = `<span class="text-muted small">Baja: ${emp.fechaBaja}</span>`;
+                }
+
+                const tr = `
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-circle me-3 small">${iniciales}</div>
+                                <div>
+                                    <div class="fw-bold">${emp.nombre}</div>
+                                    <div class="text-muted small">${emp.puesto}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${emp.depto}</td>
+                        <td>${emp.sucursal}</td>
+                        <td>${emp.fechaIngreso}</td>
+                        <td><span class="${badgeClass}">${emp.estado}</span></td>
+                        <td class="text-end">${botonesAccion}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += tr;
+            });
+        }
+
+        function abrirModalAlta() {
+            document.getElementById('formEmpleado').reset();
+            document.getElementById('empId').value = '';
+            document.getElementById('modalTitulo').innerText = 'Nuevo Ingreso';
+            document.getElementById('empFechaIngreso').value = new Date().toISOString().split('T')[0];
+            modalEmpleadoObj.show();
+        }
+
+        function guardarEmpleado() {
+            const id = document.getElementById('empId').value;
+            const nombre = document.getElementById('empNombre').value;
+            const depto = document.getElementById('empDepto').value;
+            const sucursal = document.getElementById('empSucursal').value;
+            const puesto = document.getElementById('empPuesto').value;
+            const fecha = document.getElementById('empFechaIngreso').value;
+
+            if(!nombre || !fecha) {
+                Swal.fire('Error', 'Completa los campos obligatorios', 'error');
+                return;
+            }
+
+            if(id) {
+                const index = empleadosDB.findIndex(e => e.id == id);
+                if(index !== -1) {
+                    empleadosDB[index] = { ...empleadosDB[index], nombre, depto, sucursal, puesto, fechaIngreso: fecha };
+                    Swal.fire('Éxito', 'Empleado actualizado', 'success');
+                }
+            } else {
+                const newId = empleadosDB.length > 0 ? Math.max(...empleadosDB.map(e => e.id)) + 1 : 1;
+                empleadosDB.push({
+                    id: newId, nombre, depto, sucursal, puesto, fechaIngreso: fecha,
+                    estado: 'Activo', fechaBaja: null, motivoBaja: null
+                });
+                Swal.fire('Éxito', 'Nuevo ingreso registrado', 'success');
+            }
+            modalEmpleadoObj.hide();
+            renderTable();
+            updateDashboard();
+        }
+
+        function editarEmpleado(id) {
+            const emp = empleadosDB.find(e => e.id === id);
+            if(emp) {
+                document.getElementById('empId').value = emp.id;
+                document.getElementById('empNombre').value = emp.nombre;
+                document.getElementById('empDepto').value = emp.depto;
+                document.getElementById('empSucursal').value = emp.sucursal;
+                document.getElementById('empPuesto').value = emp.puesto;
+                document.getElementById('empFechaIngreso').value = emp.fechaIngreso;
+                document.getElementById('modalTitulo').innerText = 'Editar Datos';
+                modalEmpleadoObj.show();
+            }
+        }
+
+        function prepararBaja(id) {
+            const emp = empleadosDB.find(e => e.id === id);
+            if(emp) {
+                document.getElementById('bajaId').value = emp.id;
+                document.getElementById('bajaNombre').innerText = emp.nombre;
+                document.getElementById('bajaFecha').value = new Date().toISOString().split('T')[0];
+                modalBajaObj.show();
+            }
+        }
+
+        function confirmarBaja() {
+            const id = document.getElementById('bajaId').value;
+            const fecha = document.getElementById('bajaFecha').value;
+            const motivo = document.getElementById('bajaMotivo').value;
+
+            const index = empleadosDB.findIndex(e => e.id == id);
+            if(index !== -1) {
+                empleadosDB[index].estado = 'Inactivo';
+                empleadosDB[index].fechaBaja = fecha;
+                empleadosDB[index].motivoBaja = motivo;
+                
+                Swal.fire('Baja Procesada', 'El registro ha sido actualizado.', 'warning');
+                modalBajaObj.hide();
+                renderTable();
+                updateDashboard();
+            }
+        }
+
+        // --- 3. DASHBOARD Y GRÁFICAS ---
+        function updateDashboard() {
+            const anio = document.getElementById('filtroAnio').value;
+            const fDepto = document.getElementById('filtroDept').value;
+            const fSuc = document.getElementById('filtroSucursal').value;
+
+            const dataIngresos = new Array(12).fill(0);
+            const dataBajas = new Array(12).fill(0);
+            const dataEfectividad = new Array(12).fill(null);
+            const causasStats = {};
+
+            let totalIngresos = 0;
+            let totalBajas = 0;
+            let headcount = 0;
+
+            empleadosDB.forEach(emp => {
+                const matchDepto = fDepto === 'all' || emp.depto === fDepto;
+                const matchSuc = fSuc === 'all' || emp.sucursal === fSuc;
+
+                if (matchDepto && matchSuc) {
+                    if(emp.estado === 'Activo') headcount++;
+
+                    if (emp.fechaIngreso && emp.fechaIngreso.startsWith(anio)) {
+                        const mesIndex = parseInt(emp.fechaIngreso.split('-')[1]) - 1;
+                        dataIngresos[mesIndex]++;
+                        totalIngresos++;
+                    }
+                    if (emp.fechaBaja && emp.fechaBaja.startsWith(anio)) {
+                        const mesIndex = parseInt(emp.fechaBaja.split('-')[1]) - 1;
+                        dataBajas[mesIndex]++;
+                        totalBajas++;
+                        const causa = emp.motivoBaja || "Otro";
+                        causasStats[causa] = (causasStats[causa] || 0) + 1;
+                    }
+                }
+            });
+
+            for(let i=0; i<12; i++) {
+                if(dataIngresos[i] > 0) {
+                    let efec = ((dataIngresos[i] - dataBajas[i]) / dataIngresos[i]) * 100;
+                    dataEfectividad[i] = Math.round(efec);
+                } else {
+                    dataEfectividad[i] = null;
+                }
+            }
+
+            document.getElementById('kpi-headcount').innerText = headcount;
+            document.getElementById('kpi-ingresos').innerText = totalIngresos;
+            document.getElementById('kpi-bajas').innerText = totalBajas;
+            const rotacion = totalIngresos > 0 ? ((totalBajas / totalIngresos) * 100).toFixed(1) + '%' : '0%';
+            document.getElementById('kpi-rotacion').innerText = rotacion;
+
+            renderCharts(dataIngresos, dataBajas, dataEfectividad, causasStats);
+        }
+
+        function renderCharts(ingresos, bajas, efectividad, causasStats) {
+            const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            
+            // Gráfica de Barras
+            const ctxMov = document.getElementById('chartMovimientos').getContext('2d');
+            if (chartMovimientosInstance) chartMovimientosInstance.destroy();
+            Chart.defaults.backgroundColor = '#ffffff';
+
+            chartMovimientosInstance = new Chart(ctxMov, {
+                type: 'bar',
+                data: {
+                    labels: meses,
+                    datasets: [
+                        { label: 'Ingresos', data: ingresos, backgroundColor: '#28a745', order: 2 },
+                        { label: 'Bajas', data: bajas, backgroundColor: '#dc3545', order: 3 },
+                        { 
+                            label: 'Efectividad (%)', 
+                            data: efectividad, 
+                            type: 'line', 
+                            borderColor: '#333',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            yAxisID: 'y1', 
+                            order: 1,
+                            spanGaps: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { beginAtZero: true },
+                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+
+            // Gráfica de Pastel
+            const ctxCausas = document.getElementById('chartCausas').getContext('2d');
+            if (chartCausasInstance) chartCausasInstance.destroy();
+
+            // Si no hay datos de bajas, mostramos un gráfico vacío o mensaje, Chart.js maneja array vacío bien
+            chartCausasInstance = new Chart(ctxCausas, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(causasStats),
+                    datasets: [{
+                        data: Object.values(causasStats),
+                        backgroundColor: ['#007bff', '#ffc107', '#dc3545', '#17a2b8', '#6610f2']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } }
+                }
+            });
+        }
+
+        // --- 4. EXPORTACIÓN ---
+        function descargarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const fecha = new Date().toLocaleDateString();
+            
+            doc.setFontSize(20);
+            doc.text("Reporte RH - UDG", 14, 22);
+            doc.setFontSize(10);
+            doc.text(`Fecha: ${fecha}`, 14, 30);
+            
+            const canvas = document.getElementById('chartMovimientos');
+            const imgData = canvas.toDataURL('image/png');
+            doc.addImage(imgData, 'PNG', 15, 40, 180, 100);
+            doc.save(`Reporte_RH_${Date.now()}.pdf`);
+        }
+
+        function descargarPNG() {
+            const canvas = document.getElementById('chartMovimientos');
+            const link = document.createElement('a');
+            link.download = `Grafica_RH_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // --- INICIALIZACIÓN PRINCIPAL ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Inicializar Modales de Bootstrap de forma segura
+            modalEmpleadoObj = new bootstrap.Modal(document.getElementById('modalEmpleado'));
+            modalBajaObj = new bootstrap.Modal(document.getElementById('modalBaja'));
+
+            // 2. Cargar Datos y Renderizar
+            initDB();
+            renderTable();
+            updateDashboard();
+        });
+
+    </script>
+</body>
+</html>
